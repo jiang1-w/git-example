@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>小车控制台</title>
+<style>
+  body { font-family: Consolas, monospace; background: #1e1e1e; color: #33ff33; padding: 24px; }
+  pre { font-size: 24px; line-height: 1.15; }
+  button { font-size: 16px; padding: 6px 18px; margin-right: 8px; }
+</style></head>
+<body>
+<h2>小车控制台 —— 按键盘 W/A/S/D 移动</h2>
+<pre id="map"></pre>
+<p id="pos">坐标: (1, 1)</p>
+<button onclick="reset()">重置</button>
+<script>
+const W = 10, H = 8;
+let pos = {x: 1, y: 1};
+
+function draw() {
+  let s = "";
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) s += (x === pos.x && y === pos.y) ? "@" : "·";
+    s += "\n";
+  }
+  document.getElementById("map").textContent = s;
+  document.getElementById("pos").textContent = "坐标: (" + pos.x + ", " + pos.y + ")";
+}
+
+async function send(cmd) {                      // 遥控器：把指令发给后端
+  const r = await fetch("/api/move?cmd=" + cmd);
+  const j = await r.json();
+  if (r.ok) { pos = j; draw(); }
+  else { document.getElementById("pos").textContent = "无效指令: " + cmd; }
+}
+
+async function reset() {
+  const r = await fetch("/api/reset");
+  pos = await r.json();
+  draw();
+}
+
+document.addEventListener("keydown", e => {     // 键盘监听
+  const k = e.key.toLowerCase();
+  if ("wasd".includes(k)) send(k);
+});
+
+draw();
+</script>
+</body>
+</html>
