@@ -28,40 +28,89 @@
 const COLS = 10, ROWS = 8, CELL = 40;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 let car = { x: 1, y: 1 };
+let isMoving = false; // 防止动画没走完又点下一个点
 
+// 画图函数
 function draw() {
   ctx.clearRect(0, 0, cv.width, cv.height);
   ctx.strokeStyle = '#ddd';
   for (let c = 0; c <= COLS; c++) { ctx.beginPath(); ctx.moveTo(c*CELL, 0); ctx.lineTo(c*CELL, ROWS*CELL); ctx.stroke(); }
   for (let r = 0; r <= ROWS; r++) { ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(COLS*CELL, r*CELL); ctx.stroke(); }
+  
   ctx.fillStyle = '#0d6b60';
   ctx.beginPath();
   ctx.arc(car.x*CELL + CELL/2, car.y*CELL + CELL/2, CELL/3, 0, Math.PI*2);
   ctx.fill();
+  
   document.getElementById('pos').textContent = '坐标: (' + car.x + ', ' + car.y + ')';
 }
 
+// 手动控制函数（键盘/按钮）
 async function move(direction) {
+  if (isMoving) return; // 动画期间禁用
+  
   const resp = await fetch('/api/move', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ direction: direction, x: car.x, y: car.y })
   });
-  const data = await resp.json();   // 后端算好的新坐标 {"new_x":..,"new_y":..}
+  const data = await resp.json(); 
+  
   car.x = data.new_x;
   car.y = data.new_y;
   draw();
 }
+
+// 重置小车
 function resetCar() {
-  car.x = 1; car.y = 1;             // 无状态后端不记坐标：重置由前端自己回起点
+  if (isMoving) return;
+  car.x = 1; car.y = 1;
   draw();
 }
+
+// 点击画布触发寻路
+cv.addEventListener('click', async (e) => {
+  if (isMoving) return; 
+
+  const rect = cv.getBoundingClientRect();
+  const clickX = Math.floor((e.clientX - rect.left) / CELL);
+  const clickY = Math.floor((e.clientY - rect.top) / CELL);
+
+  const resp = await fetch('/api/bfs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sx: car.x, sy: car.y, gx: clickX, gy: clickY })
+  });
+  const data = await resp.json();
+
+  if (data.found && data.path) {
+    animatePath(data.path);
+  } else {
+    console.log("没有路能走过去！");
+  }
+});
+
+// 键盘监听
 document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
-  console.log("我按下了键盘，按键是：" + k);
   if ('wasd'.includes(k)) move(k);
 });
+
+// 播放 BFS 路径动画（只保留这一个）
+async function animatePath(path) {
+  isMoving = true; 
+  for (let i = 1; i < path.length; i++) {
+    car.x = path[i][0];
+    car.y = path[i][1];
+    draw(); 
+    await new Promise(r => setTimeout(r, 150)); // 停顿 150ms
+  }
+  isMoving = false; 
+}
+
+// 初始化
 draw();
+</script>
 </script>
 </body>
 </html>
