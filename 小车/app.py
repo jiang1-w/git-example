@@ -1,35 +1,12 @@
+from collections import deque
 from flask import Flask, request
 
 app = Flask(__name__)
 
-@app.post('/api/move')
-def move():
-    data = request.get_json()
-    direction = data.get('direction', '')
-    x = int(data.get('x', 0))
-    y = int(data.get('y', 0))
-    
-    new_x, new_y = x, y
-    
-    if direction == 'w': new_y -= 1
-    elif direction == 's': new_y += 1
-    elif direction == 'a': new_x -= 1
-    elif direction == 'd': new_x += 1
-    
-    if 0 <= new_x < 20 and 0 <= new_y < 15:
-        return {'new_x': new_x, 'new_y': new_y}
-    else:
-        return {'new_x': x, 'new_y': y}
-
-@app.get('/')
-def home():
-    with open('index.html', encoding='utf-8') as f:
-        return f.read()
-
-#）地图
+# ---------- 地图（1 = 障碍物，0 = 可通行），是全程序的唯一权威来源 ----------
 GRID = [
     [0,0,0,0,0,0,0,0,0,0],
-    [0,1,1,1,0,0,1,1,1,0],
+    [0,0,1,1,0,0,1,1,1,0],
     [0,1,0,0,0,0,0,0,1,0],
     [0,1,0,1,1,1,1,0,1,0],
     [0,0,0,1,0,0,1,0,0,0],
@@ -39,13 +16,37 @@ GRID = [
 GRID_H = len(GRID)
 GRID_W = len(GRID[0])
 
-from collections import deque
+def can_stand(x, y):
+    """越界或障碍物都不允许站立"""
+    return 0 <= x < GRID_W and 0 <= y < GRID_H and GRID[y][x] == 0
+
+@app.post('/api/move')
+def move():
+    data = request.get_json()
+    direction = data.get('direction', '')
+    x = int(data.get('x', 0))
+    y = int(data.get('y', 0))
+
+    new_x, new_y = x, y
+    if direction == 'w': new_y -= 1
+    elif direction == 's': new_y += 1
+    elif direction == 'a': new_x -= 1
+    elif direction == 'd': new_x += 1
+
+    blocked = not can_stand(new_x, new_y)   # 撞障碍物或走出地图：原地不动
+    if not blocked:
+        x, y = new_x, new_y
+    return {'new_x': x, 'new_y': y, 'blocked': blocked}
+
+@app.get('/')
+def home():
+    with open('index.html', encoding='utf-8') as f:
+        return f.read()
 
 def bfs(start, goal):
     """返回从 start 到 goal 的最短路径坐标列表；不可达返回 None。"""
     sx, sy = start
     gx, gy = goal
-    # 越界或障碍直接失败
     for (px, py) in (start, goal):
         if not (0 <= px < GRID_W and 0 <= py < GRID_H):
             return None
@@ -58,7 +59,6 @@ def bfs(start, goal):
     while q:
         x, y = q.popleft()
         if (x, y) == (gx, gy):
-            # 回溯路径
             path = []
             cur = (gx, gy)
             while cur is not None:
@@ -85,6 +85,7 @@ def api_bfs():
 @app.get('/api/maze')
 def api_maze():
     return {'w': GRID_W, 'h': GRID_H, 'maze': GRID}
+
 if __name__ == '__main__':
     print("小车后端已启动: http://127.0.0.1:8000")
     app.run(host='127.0.0.1', port=8000, debug=True)

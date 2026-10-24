@@ -15,7 +15,8 @@
 </head>
 <body>
 <h1>小车远程控制台</h1>
-<canvas id="cv" width="400" height="320"></canvas>
+<p>点画布 = 自动寻路（BFS）　W/A/S/D 或按钮 = 手动开车</p>
+<canvas id="cv" width="400" height="280"></canvas>
 <div>
   <button onclick="move('w')">W · 上</button>
   <button onclick="move('a')">A · 左</button>
@@ -25,53 +26,75 @@
 </div>
 <div id="pos">坐标: (1, 1)</div>
 <script>
-const COLS = 10, ROWS = 8, CELL = 40;
+const CELL = 40;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+let COLS = 10, ROWS = 7;
+let maze = null;                // 从 /api/maze 拿到的地图（唯一权威来源）
 let car = { x: 1, y: 1 };
-let isMoving = false; // 防止动画没走完又点下一个点
+let goal = null;                // BFS 目标标记
+let pathCells = [];             // 当前展示的 BFS 路径
+let isMoving = false;
 
-// 画图函数
+async function loadMaze() {     // 启动时从后端拿地图，画布尺寸也随之校正
+  const r = await fetch('/api/maze');
+  const d = await r.json();
+  COLS = d.w; ROWS = d.h; maze = d.maze;
+  cv.width = COLS * CELL; cv.height = ROWS * CELL;
+  draw();
+}
+
 function draw() {
   ctx.clearRect(0, 0, cv.width, cv.height);
-  ctx.strokeStyle = '#ddd';
-  for (let c = 0; c <= COLS; c++) { ctx.beginPath(); ctx.moveTo(c*CELL, 0); ctx.lineTo(c*CELL, ROWS*CELL); ctx.stroke(); }
-  for (let r = 0; r <= ROWS; r++) { ctx.beginPath(); ctx.moveTo(0, r*CELL); ctx.lineTo(COLS*CELL, r*CELL); ctx.stroke(); }
-  
-  ctx.fillStyle = '#0d6b60';
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      const px = x * CELL, py = y * CELL;
+      if (maze && maze[y][x] === 1) {
+        ctx.fillStyle = '#4a4a4a';                    // 障碍物：深色实心块
+        ctx.fillRect(px, py, CELL, CELL);
+      } else {
+        ctx.strokeStyle = '#e5e2d8';                  // 可通行格：浅色网格
+        ctx.strokeRect(px + 0.5, py + 0.5, CELL, CELL);
+      }
+    }
+  }
+  ctx.fillStyle = 'rgba(13,107,96,0.25)';             // BFS 路径高亮
+  for (const c of pathCells) ctx.fillRect(c[0]*CELL, c[1]*CELL, CELL, CELL);
+  if (goal) {                                         // 目标标记
+    ctx.strokeStyle = '#b0532e'; ctx.lineWidth = 3;
+    ctx.strokeRect(goal.x*CELL+6, goal.y*CELL+6, CELL-12, CELL-12);
+    ctx.lineWidth = 1;
+  }
+  ctx.fillStyle = '#0d6b60';                          // 小车
   ctx.beginPath();
   ctx.arc(car.x*CELL + CELL/2, car.y*CELL + CELL/2, CELL/3, 0, Math.PI*2);
   ctx.fill();
-  
   document.getElementById('pos').textContent = '坐标: (' + car.x + ', ' + car.y + ')';
 }
 
-// 手动控制函数（键盘/按钮）
 async function move(direction) {
-  if (isMoving) return; // 动画期间禁用
-  
+  if (isMoving) return;
   const resp = await fetch('/api/move', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ direction: direction, x: car.x, y: car.y })
   });
-  const data = await resp.json(); 
-  
-  car.x = data.new_x;
-  car.y = data.new_y;
+  const data = await resp.json();
+  car.x = data.new_x; car.y = data.new_y;
+  pathCells = []; goal = null;                        // 手动一动，旧寻路展示作废
   draw();
+  if (data.blocked) {
+    document.getElementById('pos').textContent += '　🚧 被障碍物挡住了！';
+  }
 }
 
-// 重置小车
 function resetCar() {
   if (isMoving) return;
-  car.x = 1; car.y = 1;
+  car = { x: 1, y: 1 }; goal = null; pathCells = [];
   draw();
 }
 
-// 点击画布触发寻路
 cv.addEventListener('click', async (e) => {
-  if (isMoving) return; 
-
+  if (isMoving) return;
   const rect = cv.getBoundingClientRect();
   const clickX = Math.floor((e.clientX - rect.left) / CELL);
   const clickY = Math.floor((e.clientY - rect.top) / CELL);
@@ -82,35 +105,32 @@ cv.addEventListener('click', async (e) => {
     body: JSON.stringify({ sx: car.x, sy: car.y, gx: clickX, gy: clickY })
   });
   const data = await resp.json();
-
   if (data.found && data.path) {
+    goal = { x: clickX, y: clickY };
+    pathCells = data.path;
     animatePath(data.path);
   } else {
-    console.log("没有路能走过去！");
+    document.getElementById('pos').textContent = '那里过不去！（障碍物或不可达）';
   }
 });
 
-// 键盘监听
 document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if ('wasd'.includes(k)) move(k);
 });
 
-// 播放 BFS 路径动画（只保留这一个）
 async function animatePath(path) {
-  isMoving = true; 
+  isMoving = true;
   for (let i = 1; i < path.length; i++) {
     car.x = path[i][0];
     car.y = path[i][1];
-    draw(); 
-    await new Promise(r => setTimeout(r, 150)); // 停顿 150ms
+    draw();
+    await new Promise(r => setTimeout(r, 150));
   }
-  isMoving = false; 
+  isMoving = false;
 }
 
-// 初始化
-draw();
-</script>
+loadMaze();
 </script>
 </body>
 </html>
