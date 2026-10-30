@@ -11,36 +11,50 @@
            background: #fff; color: #0d6b60; border-radius: 6px; cursor: pointer; }
   button:hover { background: #0d6b60; color: #fff; }
   #pos { font-size: 18px; margin-top: 10px; color: #333; }
+  #check { font-size: 18px; color: #d4a017; }
 </style>
 </head>
 <body>
-<h1>小车远程控制台</h1>
-<p>点画布 = 自动寻路（BFS）　W/A/S/D 或按钮 = 手动开车</p>
+<h1>小车远程控制台（巡检版）</h1>
+<p>点画布 = 自动寻路　W/A/S/D 或按钮 = 手动开车　金色圆圈 = 待巡检点</p>
 <canvas id="cv" width="400" height="280"></canvas>
 <div>
   <button onclick="move('w')">W · 上</button>
   <button onclick="move('a')">A · 左</button>
   <button onclick="move('s')">S · 下</button>
   <button onclick="move('d')">D · 右</button>
-  <button onclick="resetCar()" style="color:#b0532e; border-color:#b0532e;">重置</button>
+  <button onclick="resetCar()" style="color:#b0532e; border-color:#b0532e;">重置（含打卡记录）</button>
 </div>
 <div id="pos">坐标: (1, 1)</div>
+<div id="check">巡检 0 / 3</div>
 <script>
 const CELL = 40;
 const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
 let COLS = 10, ROWS = 7;
-let maze = null;                // 从 /api/maze 拿到的地图（唯一权威来源）
+let maze = null;
 let car = { x: 1, y: 1 };
-let goal = null;                // BFS 目标标记
-let pathCells = [];             // 当前展示的 BFS 路径
+let goal = null;
+let pathCells = [];
 let isMoving = false;
+let checked = [];               // 已打卡列表（和后端账本同步）
+let total = 0;                  // 巡检点总数
 
-async function loadMaze() {     // 启动时从后端拿地图，画布尺寸也随之校正
+async function loadMaze() {
   const r = await fetch('/api/maze');
   const d = await r.json();
   COLS = d.w; ROWS = d.h; maze = d.maze;
   cv.width = COLS * CELL; cv.height = ROWS * CELL;
+  const c = await fetch('/api/checkpoints');       // 顺便拿打卡账本
+  const cd = await c.json();
+  checked = cd.checked; total = cd.total;
+  updateCheck();
   draw();
+}
+
+function updateCheck() {                            // 刷新巡检计数器
+  let text = '巡检 ' + checked.length + ' / ' + total;
+  if (total > 0 && checked.length === total) text += '　🎉 巡检完成！';
+  document.getElementById('check').textContent = text;
 }
 
 function draw() {
@@ -48,23 +62,35 @@ function draw() {
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
       const px = x * CELL, py = y * CELL;
-      if (maze && maze[y][x] === 1) {
-        ctx.fillStyle = '#4a4a4a';                    // 障碍物：深色实心块
+      if (maze[y][x] === 1) {
+        ctx.fillStyle = '#4a4a4a';
         ctx.fillRect(px, py, CELL, CELL);
+      } else if (maze[y][x] === 2) {                // 巡检点：分"打过/没打过"两种画法
+        const key = x + ',' + y;
+        if (checked.includes(key)) {
+          ctx.fillStyle = '#2e8b57';                // 打过卡：绿色实心块
+          ctx.fillRect(px + 10, py + 10, CELL - 20, CELL - 20);
+        } else {
+          ctx.strokeStyle = '#d4a017'; ctx.lineWidth = 3;   // 没打卡：金色圆圈
+          ctx.beginPath();
+          ctx.arc(px + CELL/2, py + CELL/2, CELL/4, 0, Math.PI*2);
+          ctx.stroke();
+          ctx.lineWidth = 1;
+        }
       } else {
-        ctx.strokeStyle = '#e5e2d8';                  // 可通行格：浅色网格
+        ctx.strokeStyle = '#e5e2d8';
         ctx.strokeRect(px + 0.5, py + 0.5, CELL, CELL);
       }
     }
   }
-  ctx.fillStyle = 'rgba(13,107,96,0.25)';             // BFS 路径高亮
+  ctx.fillStyle = 'rgba(13,107,96,0.25)';
   for (const c of pathCells) ctx.fillRect(c[0]*CELL, c[1]*CELL, CELL, CELL);
-  if (goal) {                                         // 目标标记
+  if (goal) {
     ctx.strokeStyle = '#b0532e'; ctx.lineWidth = 3;
     ctx.strokeRect(goal.x*CELL+6, goal.y*CELL+6, CELL-12, CELL-12);
     ctx.lineWidth = 1;
   }
-  ctx.fillStyle = '#0d6b60';                          // 小车
+  ctx.fillStyle = '#0d6b60';
   ctx.beginPath();
   ctx.arc(car.x*CELL + CELL/2, car.y*CELL + CELL/2, CELL/3, 0, Math.PI*2);
   ctx.fill();
@@ -80,17 +106,23 @@ async function move(direction) {
   });
   const data = await resp.json();
   car.x = data.new_x; car.y = data.new_y;
-  pathCells = []; goal = null;                        // 手动一动，旧寻路展示作废
-  draw();
+  checked = data.checked;                             // 每一步都和后端账本同步
+  pathCells = []; goal = null;
+  draw(); updateCheck();
   if (data.blocked) {
     document.getElementById('pos').textContent += '　🚧 被障碍物挡住了！';
+  } else if (data.checkpoint) {
+    document.getElementById('pos').textContent += '　📍 打卡成功！';
   }
 }
 
-function resetCar() {
+async function resetCar() {                           // 重置 = 小车回家 + 清空打卡账本
   if (isMoving) return;
+  const r = await fetch('/api/reset', { method: 'POST' });
+  const d = await r.json();
+  checked = d.checked;
   car = { x: 1, y: 1 }; goal = null; pathCells = [];
-  draw();
+  draw(); updateCheck();
 }
 
 cv.addEventListener('click', async (e) => {
@@ -98,7 +130,6 @@ cv.addEventListener('click', async (e) => {
   const rect = cv.getBoundingClientRect();
   const clickX = Math.floor((e.clientX - rect.left) / CELL);
   const clickY = Math.floor((e.clientY - rect.top) / CELL);
-
   const resp = await fetch('/api/bfs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -124,7 +155,8 @@ async function animatePath(path) {
   for (let i = 1; i < path.length; i++) {
     car.x = path[i][0];
     car.y = path[i][1];
-    draw();
+    checked = (await (await fetch('/api/checkpoints')).json()).checked;  // 走到巡检点时账本会更新
+    draw(); updateCheck();
     await new Promise(r => setTimeout(r, 150));
   }
   isMoving = false;
