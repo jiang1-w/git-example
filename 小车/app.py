@@ -16,11 +16,17 @@ GRID = [
 GRID_H = len(GRID)
 GRID_W = len(GRID[0])
 
-TOTAL = 0                       # 巡检点总数：数一遍地图里有几个 2
+TOTAL = 0                       # 巡检点总数
 for row in GRID:
-    TOTAL = TOTAL + row.count(2)    # count(2) = 这一行里 2 的个数
+    TOTAL = TOTAL + row.count(2)
 
-checked = []                    # 已打卡的巡检点，存 "x,y" 字符串（这个账本在后端，全局共享）
+POINTS = []                     # 所有巡检点的坐标，供前端自动巡检排队用
+for yy in range(GRID_H):
+    for xx in range(GRID_W):
+        if GRID[yy][xx] == 2:
+            POINTS.append([xx, yy])
+
+checked = []                    # 已打卡账本（存在后端，多个浏览器共享）
 
 def can_stand(x, y):
     """越界不行；障碍物(1)不行；空地(0)和巡检点(2)都可以站"""
@@ -42,24 +48,34 @@ def move():
     elif direction == 'd': new_x += 1
 
     blocked = not can_stand(new_x, new_y)
-    hit = False                                 # 这一步有没有踩到"新"巡检点
+    hit = False
     if not blocked:
         x, y = new_x, new_y
-        if GRID[y][x] == 2:                     # 踩在巡检点上
-            key = str(x) + ',' + str(y)         # 拼出钥匙，例如 "4,0"
-            if key not in checked:              # 账本里没有 → 第一次踩到
-                checked.append(key)             # 记账
+        if GRID[y][x] == 2:
+            key = str(x) + ',' + str(y)
+            if key not in checked:
+                checked.append(key)
                 hit = True
     return {'new_x': x, 'new_y': y, 'blocked': blocked,
             'checkpoint': hit, 'checked': checked, 'total': TOTAL}
 
+@app.get('/api/sensors')
+def sensors():
+    """虚拟传感器：四个方向有没有被挡（true = 那边走不了）"""
+    x = int(request.args.get('x', 0))
+    y = int(request.args.get('y', 0))
+    return {'w': not can_stand(x, y - 1),
+            's': not can_stand(x, y + 1),
+            'a': not can_stand(x - 1, y),
+            'd': not can_stand(x + 1, y)}
+
 @app.get('/api/checkpoints')
 def checkpoints():
-    return {'checked': checked, 'total': TOTAL}
+    return {'checked': checked, 'total': TOTAL, 'points': POINTS}
 
 @app.post('/api/reset')
 def reset():
-    checked.clear()                             # 原地清空账本（不需要 global 关键字）
+    checked.clear()
     return {'checked': checked, 'total': TOTAL}
 
 @app.get('/')
@@ -112,4 +128,4 @@ def api_maze():
 
 if __name__ == '__main__':
     print("小车后端已启动: http://127.0.0.1:8000  巡检点共 %d 个" % TOTAL)
-    app.run(host='127.0.0.1', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)
