@@ -169,6 +169,7 @@ async function animatePath(path) {
     if (battery <= 0) { flash('🔋 电量耗尽，自动巡检中断'); break; } // 【A3】
     car.x = path[i][0];
     car.y = path[i][1];
+    steps = steps + 1;                                // 自动巡检/BFS 走的每一步同样计步
     battery = battery - 1;
     const c = await fetch('/api/checkpoints');
     const cd = await c.json();
