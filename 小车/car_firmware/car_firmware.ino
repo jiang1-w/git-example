@@ -147,6 +147,7 @@ void setup() {                             // 开机只执行一次的部分
   pinMode(ECHO, INPUT);                    // 34 脚只能输入，天生当"耳朵"
   pinMode(SEN_L, INPUT); pinMode(SEN_C, INPUT); pinMode(SEN_R, INPUT);
   stopCar();                               // 上电第一件事：确保车是停的
+  WiFi.setTxPower(WIFI_POWER_11dBm);   // 发射功率减半：降低 WiFi 突发电流，防止 5V 轨被拉出凹陷（手机就在旁边，信号足够）
   WiFi.begin(ssid, pass);                  // 连 WiFi
   while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
   Serial.print("\n小车 IP: ");
