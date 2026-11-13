@@ -15,6 +15,7 @@ int SEN_L = 35, SEN_C = 23, SEN_R = 18;   // C/R 改到丝印清晰的 D23/D18�
 int STOP_DIST = 20;               // 自动刹车距离：前方 20cm 内有东西就拒绝前进
 int MOVE_MS  = 300;               // 点动时长：每次指令走 300 毫秒
 int AUTO_MS  = 250;               // 自动巡线：每 250 毫秒修正一次方向
+bool HAS_SONAR = false;               // 电阻包没到：暂无超声波回声（ECHO 悬空）——true 之后前进自动恢复 20cm 刹车
 int BLACK  = LOW;                 // 黑线对应的电平。多数模块黑线=LOW；若巡线方向反了，把 LOW 改成 HIGH
 
 WebServer server(80);             // 车上的网页服务器，80 端口
@@ -105,7 +106,7 @@ void handleRoot() {                        // 打开主页
 void handleMove() {                        // 访问 /move?dir=w 时执行
   autoMode = false;                        // 手动指令一来，自动巡线立刻退出
   String d = server.arg("dir");            // 取出指令字母
-  if (d == "w" && readDistance() < STOP_DIST) {   // 前方太近
+  if (HAS_SONAR && d == "w" && readDistance() < STOP_DIST) {   // 前方太近
     stopCar();                             // 拒绝前进——实物版的 can_stand()
     server.send(200, "application/json", "{\"ok\":false,\"why\":\"blocked\"}");
     return;
