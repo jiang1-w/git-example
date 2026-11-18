@@ -1,0 +1,9 @@
+name: car-web
+
+services:
+  car-web:
+    build: .
+    container_name: car-web
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

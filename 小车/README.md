@@ -32,6 +32,11 @@
 
 ## Docker 部署（可选）
 
+一键启动（推荐）：
+docker compose up -d
+浏览器打开 http://127.0.0.1:8000（停止：docker compose down）
+
+手动构建：
 docker build -t car-web .
 docker run -d -p 8000:8000 car-web
 
