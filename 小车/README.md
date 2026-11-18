@@ -44,6 +44,20 @@ docker run -d -p 8000:8000 car-web
 docker pull docker.m.daocloud.io/library/python:3.12-slim
 docker tag docker.m.daocloud.io/library/python:3.12-slim python:3.12-slim
 
+## Docker 镜像（已发布）
+
+公开镜像地址（结课提交用）：
+
+ghcr.io/jiang1-w/car-sim:v1.0
+
+拉取并运行：
+docker pull ghcr.io/jiang1-w/car-sim:v1.0
+docker run -d -p 8000:8000 ghcr.io/jiang1-w/car-sim:v1.0
+
+## 在线演示
+
+待培训工作组统一部署公布演示域名后填入。
+
 ## 成员分工
 
 - jiang1-w：前后端框架、手动控制与碰撞检查、巡检打卡、状态反馈、异常处理、文档
