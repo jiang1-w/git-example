@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" font-family="'Microsoft YaHei','微软雅黑',sans-serif">
+  <rect width="960" height="540" fill="#faf9f6"/>
+  <text x="480" y="42" text-anchor="middle" font-size="24" font-weight="bold" fill="#0d6b60">智能巡检小车 · 系统架构（前后端分离，JSON 传纸条）</text>
+
+  <!-- 前端 -->
+  <rect x="60" y="90" width="340" height="240" rx="10" fill="#ffffff" stroke="#0d6b60" stroke-width="2"/>
+  <rect x="60" y="90" width="340" height="44" rx="10" fill="#0d6b60"/>
+  <text x="230" y="119" text-anchor="middle" font-size="17" font-weight="bold" fill="#ffffff">前端 · index.html（浏览器里运行）</text>
+  <text x="84" y="162" font-size="14" fill="#2b2b28">· canvas 逐格绘制二维地图与小车</text>
+  <text x="84" y="192" font-size="14" fill="#2b2b28">· W/A/S/D 键盘 + 按钮手动控制</text>
+  <text x="84" y="222" font-size="14" fill="#2b2b28">· 点击画布任意空地 → 发起 BFS 寻路</text>
+  <text x="84" y="252" font-size="14" fill="#2b2b28">· 巡检金圈/绿块 · 步数与电量面板</text>
+  <text x="84" y="282" font-size="14" fill="#2b2b28">· catch 兜底：后端离线给出启动指引</text>
+  <text x="84" y="312" font-size="13" fill="#8a857c">只管"发请求 + 画画面"，算术全在后端</text>
+
+  <!-- 后端 -->
+  <rect x="560" y="90" width="340" height="240" rx="10" fill="#ffffff" stroke="#0d6b60" stroke-width="2"/>
+  <rect x="560" y="90" width="340" height="44" rx="10" fill="#0d6b60"/>
+  <text x="730" y="119" text-anchor="middle" font-size="17" font-weight="bold" fill="#ffffff">后端 · app.py（Python Flask）</text>
+  <text x="584" y="162" font-size="14" fill="#2b2b28">· GRID 三态地图（0 空地 / 1 墙 / 2 巡检点）</text>
+  <text x="584" y="192" font-size="14" fill="#2b2b28">· can_stand 碰撞判定（撞墙原地不动）</text>
+  <text x="584" y="222" font-size="14" fill="#2b2b28">· checked 打卡账本（两个浏览器共享）</text>
+  <text x="584" y="252" font-size="14" fill="#2b2b28">· BFS 队列扩散 + prev 脚印回溯</text>
+  <text x="584" y="282" font-size="14" fill="#2b2b28">· /api/sensors 四向虚拟传感器</text>
+  <text x="584" y="312" font-size="13" fill="#8a857c">GRID 是唯一权威来源：碰撞/BFS/打卡全认它</text>
+
+  <!-- 箭头 -->
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L9,3 L0,6" fill="none" stroke="#0d6b60" stroke-width="1.6"/></marker>
+  </defs>
+  <line x1="408" y1="180" x2="552" y2="180" stroke="#0d6b60" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="480" y="168" text-anchor="middle" font-size="13" fill="#0d6b60">JSON 请求</text>
+  <line x1="552" y1="240" x2="408" y2="240" stroke="#0d6b60" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="480" y="228" text-anchor="middle" font-size="13" fill="#0d6b60">JSON 响应</text>
+  <text x="480" y="205" text-anchor="middle" font-size="12" fill="#8a857c">6 个接口，契约与代码同步维护</text>
+
+  <!-- 接口清单条 -->
+  <rect x="60" y="360" width="840" height="56" rx="8" fill="#f2f0ea" stroke="#d8d4cc"/>
+  <text x="480" y="384" text-anchor="middle" font-size="13" fill="#2b2b28">POST /api/move　GET /api/sensors　GET /api/checkpoints　POST /api/reset　POST /api/bfs　GET /api/maze</text>
+  <text x="480" y="406" text-anchor="middle" font-size="12" fill="#8a857c">异常兜底：坏 JSON → 400 中文提示；后端离线 → 前端 catch 接住并指引启动</text>
+
+  <!-- 部署形态 -->
+  <rect x="60" y="440" width="840" height="64" rx="8" fill="#ffffff" stroke="#d8d4cc"/>
+  <text x="480" y="466" text-anchor="middle" font-size="14" fill="#2b2b28">本地运行：python app.py → http://127.0.0.1:8000　｜　一键编排：docker compose up -d</text>
+  <text x="480" y="490" text-anchor="middle" font-size="14" fill="#2b2b28">公开镜像：ghcr.io/jiang1-w/car-sim:v1.0　｜　CI：push 自动构建 + 六接口冒烟断言</text>
+</svg>

@@ -1,40 +1,44 @@
-# Git 练习仓库
+# 智能巡检小车 · 二维仿真系统
 
-用于学习 Git 的仓库。你通过 Pull Request 把自己的文件加入仓库。
+人工智能协会培训班结课项目「基于 Web 的智能巡检机器人二维仿真系统」——在浏览器里打开一张二维巡检地图：手动开车、BFS 自动寻路、巡检打卡、虚拟传感器与电量反馈，异常情况全程有兜底提示。
 
-个人文件的放置规则见 [members/README.md](members/README.md)。
+> 🌐 **在线演示**：待工作组统一部署后填入访问地址
+> 🐳 **Docker 镜像**：`ghcr.io/jiang1-w/car-sim:v1.0`（拉取即用）
 
-## 分支
+[![CI](https://github.com/jiang1-w/git-example/actions/workflows/ci.yml/badge.svg)](https://github.com/jiang1-w/git-example/actions/workflows/ci.yml)
 
-- 基于 `main` 创建，命名 `add-你的用户名`，例如 `add-octocat`。
-- 一个分支只提交一个 PR。
+## 30 秒跑起来
 
-## Commit
+```bash
+docker run -d -p 8000:8000 ghcr.io/jiang1-w/car-sim:v1.0
+# 浏览器打开 http://localhost:8000
+```
 
-格式：`<类型>: <简短说明>`
+本地开发（或一键编排）：
 
-| 类型 | 用途 |
-| --- | --- |
-| `feat` | 新增文件或内容 |
-| `fix` | 修复错误内容 |
-| `docs` | 修改说明文档 |
-| `chore` | 其他改动 |
+```bash
+cd 小车
+pip install -r requirements.txt
+python app.py        # 或者：docker compose up -d
+```
 
-- 说明不超过 50 字符，一个 commit 只做一件事。
-- 禁止 `update`、`111`、`test` 这类无意义说明。
+## 系统架构
 
-示例：`feat: 添加 members/octocat/octocat.md`
+![系统架构图](小车/docs/架构图.svg)
 
-## PR
+## 项目里有什么
 
-- 只包含自己的文件，标题格式与 commit 一致。
-- 描述写明：做了什么、改了哪些文件。
-- 目标分支必须是原仓库的 `main`，不是你 Fork 仓库的 `main`。
-- 有冲突时在本地解决后重新提交，不要关闭重开。
+| 路径 | 内容 |
+|---|---|
+| `小车/` | **项目本体**：app.py（后端）+ index.html（前端）+ Dockerfile / docker-compose + README（完整接口文档与运行说明） |
+| `小车/docs/架构图.svg` | 系统架构图 |
+| `小车/docs/项目汇报.pptx` | 成果展示材料（22 页阶段性汇报） |
+| `小车/tests/smoke_test.py` | CI 用的六接口冒烟测试 |
+| `members/` | 课程 Git 练习档案（结课项目本体在 `小车/`） |
 
-## 提交前检查
+## 成员分工
 
-- [ ] 文件位置和命名符合 [members/README.md](members/README.md)。
-- [ ] 没有改动他人的文件，也没有提交 `.DS_Store` 等杂项。
-- [ ] 分支名、commit message、PR 标题都符合本规范。
-- [ ] PR 目标分支是原仓库的 `main`。
+- **jiang1-w**：控制与状态层——前后端框架、手动控制与碰撞检查、巡检打卡、状态反馈、异常处理、文档与部署配置
+- **zile7**：算法与寻路层——BFS 最短路径算法（后端）、寻路结果可视化（前端）
+
+AI 辅助编程：代码审查与调试定位（策划书允许，关键逻辑均经人工理解与实测验证）。小组协作采用共享分支 + 先审后并、改动留痕告知。

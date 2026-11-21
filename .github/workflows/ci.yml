@@ -1,0 +1,29 @@
+name: car-sim-ci
+
+on:
+  push:
+    branches: [main, web-server]
+  workflow_dispatch:
+
+jobs:
+  api-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r 小车/requirements.txt
+      - name: 启动后端并断言全部接口
+        run: |
+          cd 小车
+          python app.py &
+          sleep 3
+          python tests/smoke_test.py
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 容器镜像构建验证
+        run: docker build -t car-sim-ci 小车/
