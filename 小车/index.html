@@ -169,13 +169,21 @@ async function animatePath(path) {
   isMoving = true;
   for (let i = 1; i < path.length; i++) {
     if (battery <= 0) { flash('🔋 电量耗尽，自动巡检中断'); break; } // 【A3】
-    car.x = path[i][0];
-    car.y = path[i][1];
+    const dx = path[i][0] - path[i - 1][0];           // 相邻两格差值 → 这一步的方向
+    const dy = path[i][1] - path[i - 1][1];
+    const dir = dx === 1 ? 'd' : dx === -1 ? 'a' : dy === 1 ? 's' : 'w';
+    const resp = await fetch('/api/move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ direction: dir, x: car.x, y: car.y })
+    });
+    const data = await resp.json();
+    car.x = data.new_x;                               // 照回信更新位置（先写数据，后重画）
+    car.y = data.new_y;
+    checked = data.checked;                           // 回信自带账本——踩中检录点这里就变了
+    if (data.checkpoint) flash('📍 打卡成功！');        // 与手动开车同款提示
     steps = steps + 1;                                // 自动巡检/BFS 走的每一步同样计步
     battery = battery - 1;
-    const c = await fetch('/api/checkpoints');
-    const cd = await c.json();
-    checked = cd.checked;
     draw(); updateCheck(); updateStatus();
     await new Promise(r => setTimeout(r, 150));
   }
